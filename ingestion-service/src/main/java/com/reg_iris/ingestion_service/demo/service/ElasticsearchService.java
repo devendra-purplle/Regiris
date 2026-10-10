@@ -120,7 +120,7 @@ public class ElasticsearchService {
 
     // Clause texts of an already-indexed document version (used for the "What's New" diff)
     public List<String> findClauseTexts(Long documentId) {
-        CriteriaQuery query = new CriteriaQuery(new Criteria("documentId").is(documentId), PageRequest.of(0, 10000));
+        CriteriaQuery query = new CriteriaQuery(new Criteria("document_id").is(documentId), PageRequest.of(0, 10000));
         return elasticsearchOperations.search(query, ClauseIndexItem.class).stream()
                 .map(hit -> hit.getContent().getText())
                 .collect(Collectors.toList());

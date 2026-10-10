@@ -4,6 +4,7 @@ import com.reg_iris.ingestion_service.demo.dto.DocumentChunk;
 import com.reg_iris.ingestion_service.demo.dto.DocumentIngestionResponse;
 import com.reg_iris.ingestion_service.demo.dto.DocumentUploadRequest;
 import com.reg_iris.ingestion_service.demo.model.DocumentMetadata;
+import com.reg_iris.ingestion_service.demo.repository.DocumentMetadataRepository;
 import com.reg_iris.ingestion_service.demo.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,7 @@ public class IngestionOrchestratorService {
     private final ElasticsearchService elasticsearchService;
     private final ChromaDBService chromaDBService;
     private final EmbeddingWebhookService embeddingWebhookService;
+    private final DocumentMetadataRepository documentMetadataRepository;
 
     @Transactional
     public DocumentIngestionResponse processDocument(MultipartFile file, DocumentUploadRequest request) {
@@ -55,17 +57,49 @@ public class IngestionOrchestratorService {
                         metadata.getRegulator()
                 );
 
-        // 3b. "What's New" paragraph-level diff against the previous version
+        // 3b. "What's New" clause-level diff against the previous version directly from MinIO
         Set<String> newTexts = chunks.stream().map(DocumentChunk::getText).collect(Collectors.toCollection(LinkedHashSet::new));
         if (metadata.getParentDocId() == null) {
             metadata.setDiffSummary("Initial version - " + newTexts.size() + " clauses ingested.");
         } else {
-            Set<String> oldTexts = new HashSet<>(elasticsearchService.findClauseTexts(metadata.getParentDocId()));
-            List<String> added = newTexts.stream().filter(t -> !oldTexts.contains(t)).toList();
-            long removed = oldTexts.stream().filter(t -> !newTexts.contains(t)).count();
-            metadata.setDiffSummary(String.format("+%d added, -%d removed clauses.", added.size(), removed)
-                    + (added.isEmpty() ? " No new clause text." : " New: \"" + (added.get(0).length() > 160 ? added.get(0).substring(0, 160) + "..." : added.get(0)) + "\""));
+            Set<String> oldTexts = new HashSet<>();
+            // Fetch parent document from database
+            DocumentMetadata parentDoc = documentMetadataRepository.findById(metadata.getParentDocId()).orElse(null);
+            if (parentDoc != null && parentDoc.getStoragePath() != null) {
+                try {
+                    byte[] parentBytes = minioStorageService.getObjectBytes(parentDoc.getStoragePath());
+                    List<DocumentChunk> parentChunks = documentParsingService.parseDocumentBytes(
+                            parentBytes, parentDoc.getFileName(), parentDoc.getDocumentId(), parentDoc.getRegulator());
+                    oldTexts = parentChunks.stream().map(DocumentChunk::getText).collect(Collectors.toSet());
+                    log.info("Successfully retrieved and parsed parent document from MinIO (Doc ID: {}, {} clauses)",
+                            parentDoc.getDocumentId(), oldTexts.size());
+                } catch (Exception e) {
+                    log.warn("Failed to retrieve parent from MinIO, attempting Elasticsearch fallback: {}", e.getMessage());
+                    oldTexts = new HashSet<>(elasticsearchService.findClauseTexts(metadata.getParentDocId()));
+                }
+            } else {
+                oldTexts = new HashSet<>(elasticsearchService.findClauseTexts(metadata.getParentDocId()));
+            }
+
+            final Set<String> previousClauseTexts = oldTexts;
+            List<String> added = newTexts.stream().filter(t -> !previousClauseTexts.contains(t)).toList();
+            long removed = previousClauseTexts.stream().filter(t -> !newTexts.contains(t)).count();
+
+            if (added.isEmpty() && removed == 0) {
+                String parentVer = parentDoc != null ? parentDoc.getVersion() : "previous version";
+                metadata.setDiffSummary("No textual clause differences between " + parentVer + " and " + metadata.getVersion() + ".");
+            } else {
+                String summary = String.format("+%d added, -%d removed clause%s.",
+                        added.size(), removed, (added.size() == 1 && removed == 0 ? "" : "s"));
+                if (!added.isEmpty()) {
+                    String firstAdded = added.get(0);
+                    String preview = firstAdded.length() > 160 ? firstAdded.substring(0, 160) + "..." : firstAdded;
+                    summary += " New: \"" + preview + "\"";
+                }
+                metadata.setDiffSummary(summary);
+            }
         }
+        documentMetadataRepository.save(metadata);
 
         // 4. Index in Elasticsearch (BM-25)
         elasticsearchService.indexDocumentClauses(chunks, metadata);
