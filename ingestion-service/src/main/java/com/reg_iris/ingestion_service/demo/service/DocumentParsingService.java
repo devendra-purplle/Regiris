@@ -8,6 +8,7 @@ import org.jsoup.Jsoup;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -21,26 +22,35 @@ public class DocumentParsingService {
             Pattern.compile("^(Article\\s+\\d+|Section\\s+\\d+|CHAPTER\\s+[IVXLCDM]+|[0-9]+\\.[0-9]+).*$", Pattern.CASE_INSENSITIVE);
 
     public List<DocumentChunk> parseDocument(MultipartFile file, Long documentId, String regulator) {
-        String filename = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+        String filename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "";
+        try {
+            return parseDocumentBytes(file.getBytes(), filename, documentId, regulator);
+        } catch (IOException e) {
+            throw new RuntimeException("Document parsing error for: " + filename, e);
+        }
+    }
+
+    public List<DocumentChunk> parseDocumentBytes(byte[] bytes, String originalFilename, Long documentId, String regulator) {
+        String filename = originalFilename != null ? originalFilename.toLowerCase() : "";
         try {
             if (filename.endsWith(".pdf")) {
-                return parsePdfPageByPage(file, documentId, regulator);
+                return parsePdfPageByPage(bytes, documentId, regulator);
             } else if (filename.endsWith(".html") || filename.endsWith(".htm")) {
-                return parseHtml(file, documentId, regulator);
+                return parseHtml(bytes, documentId, regulator);
             } else if (filename.endsWith(".docx")) {
-                return parseDocx(file, documentId, regulator);
+                return parseDocx(bytes, documentId, regulator);
             } else {
-                return parsePlainText(file, documentId, regulator);
+                return parsePlainText(bytes, documentId, regulator);
             }
         } catch (IOException e) {
             throw new RuntimeException("Document parsing error for: " + filename, e);
         }
     }
 
-    private List<DocumentChunk> parsePdfPageByPage(MultipartFile file, Long documentId, String regulator) throws IOException {
+    private List<DocumentChunk> parsePdfPageByPage(byte[] bytes, Long documentId, String regulator) throws IOException {
         List<DocumentChunk> candidates = new ArrayList<>();
 
-        try (PDDocument document = Loader.loadPDF(file.getBytes())) {
+        try (PDDocument document = Loader.loadPDF(bytes)) {
             int totalPages = document.getNumberOfPages();
             PDFTextStripper stripper = new PDFTextStripper();
             String currentSection = "General Provisions";
@@ -78,8 +88,8 @@ public class DocumentParsingService {
         return linkAndFilterChunks(candidates);
     }
 
-    private List<DocumentChunk> parseHtml(MultipartFile file, Long documentId, String regulator) throws IOException {
-        org.jsoup.nodes.Document doc = Jsoup.parse(file.getInputStream(), "UTF-8", "");
+    private List<DocumentChunk> parseHtml(byte[] bytes, Long documentId, String regulator) throws IOException {
+        org.jsoup.nodes.Document doc = Jsoup.parse(new ByteArrayInputStream(bytes), "UTF-8", "");
         List<DocumentChunk> candidates = new ArrayList<>();
         String currentSection = "General Provisions";
         int pageCounter = 1;
@@ -101,8 +111,8 @@ public class DocumentParsingService {
         return linkAndFilterChunks(candidates);
     }
 
-    private List<DocumentChunk> parsePlainText(MultipartFile file, Long documentId, String regulator) throws IOException {
-        String fullText = new String(file.getBytes(), StandardCharsets.UTF_8);
+    private List<DocumentChunk> parsePlainText(byte[] bytes, Long documentId, String regulator) {
+        String fullText = new String(bytes, StandardCharsets.UTF_8);
         String[] paragraphs = fullText.split("\\r?\\n\\r?\\n");
         List<DocumentChunk> candidates = new ArrayList<>();
         int pageCounter = 1;
@@ -122,9 +132,9 @@ public class DocumentParsingService {
         return linkAndFilterChunks(candidates);
     }
 
-    private List<DocumentChunk> parseDocx(MultipartFile file, Long documentId, String regulator) throws IOException {
+    private List<DocumentChunk> parseDocx(byte[] bytes, Long documentId, String regulator) throws IOException {
         List<DocumentChunk> candidates = new ArrayList<>();
-        try (org.apache.poi.xwpf.usermodel.XWPFDocument document = new org.apache.poi.xwpf.usermodel.XWPFDocument(file.getInputStream())) {
+        try (org.apache.poi.xwpf.usermodel.XWPFDocument document = new org.apache.poi.xwpf.usermodel.XWPFDocument(new ByteArrayInputStream(bytes))) {
             String currentSection = "General Provisions";
             int pageCounter = 1;
             int wordCount = 0;

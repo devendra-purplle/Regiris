@@ -1,6 +1,7 @@
 package com.reg_iris.ingestion_service.demo.service;
 
 import io.minio.BucketExistsArgs;
+import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
@@ -60,6 +61,24 @@ public class MinioStorageService {
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to upload document to MinIO", e);
+        }
+    }
+
+    public byte[] getObjectBytes(String storagePath) {
+        try {
+            String objectName = storagePath;
+            if (objectName != null && objectName.startsWith(bucketName + "/")) {
+                objectName = objectName.substring(bucketName.length() + 1);
+            }
+            try (InputStream stream = minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectName)
+                            .build())) {
+                return stream.readAllBytes();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to download document from MinIO: " + storagePath, e);
         }
     }
 }

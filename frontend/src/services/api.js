@@ -41,8 +41,18 @@ export async function fetchDocuments() {
 export async function fetchUpdates() {
   const docs = await fetchDocuments();
   return docs.map((d) => {
-    const from = docs.find((p) => p.documentId === d.parentDocId)?.version;
-    const diff = d.diffSummary || "No diff recorded for this version.";
+    const parentDoc = docs.find((p) => p.documentId === d.parentDocId);
+    const from = parentDoc?.version;
+    const diff = d.diffSummary ? d.diffSummary.trim() : "";
+    const changeItems = [
+      `Version: ${from ? `${from} → ${d.version}` : `${d.version} (baseline version)`}`,
+    ];
+    if (d.effectiveDate) {
+      changeItems.push(`Effective date: ${d.effectiveDate}`);
+    }
+    if (diff) {
+      changeItems.push(diff);
+    }
     return {
       id: d.documentId,
       regulator: d.regulator,
@@ -50,7 +60,7 @@ export async function fetchUpdates() {
       date: `Effective ${d.effectiveDate || "N/A"} · Uploaded ${String(d.uploadTimestamp ?? "").slice(0, 10)}`,
       level: from ? "high" : "low",
       summary: diff,
-      changes: [`Version: ${from ?? "none"} → ${d.version}`, `Effective date: ${d.effectiveDate || "N/A"}`, diff],
+      changes: changeItems,
     };
   });
 }

@@ -73,7 +73,7 @@ export const reports = [
 ];
 
 export const productTypes = ["Interest Rate Swap", "Equity Option", "Credit Default Swap", "FX Forward"];
-export const regulators = ["EMIR", "MiFID II", "Dodd-Frank", "FCA"];
+export const regulators = ["EMIR", "MiFID II", "SEC", "FCA", "Dodd-Frank", "CFTC", "ESMA"];
 export const counterpartyTypes = ["Financial", "Non-Financial", "Corporate", "Fund"];
 
 export const sampleTrades = [
