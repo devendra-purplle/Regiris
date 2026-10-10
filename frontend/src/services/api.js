@@ -1,24 +1,65 @@
-import { searchResults, assistantPrompts } from "../data/mockData.js";
-
-// Swap these mock calls for real backend requests when ready.
-const delay = (ms = 300) => new Promise((r) => setTimeout(r, ms));
-
 export async function searchDocuments(query) {
-  await delay();
-  const q = query.trim().toLowerCase();
-  if (!q) return searchResults;
-  const words = q.split(/\s+/);
-  return searchResults.filter((r) =>
-    words.some((w) => `${r.title} ${r.regulator} ${r.snippet}`.toLowerCase().includes(w))
-  );
+  const q = (query || "").trim();
+  if (!q) return [];
+  const res = await fetch("/api/v1/search/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query: q, search_mode: "hybrid" }),
+  });
+  if (!res.ok) throw new Error(`Search failed (HTTP ${res.status})`);
+  const data = await res.json();
+  return (data.results || []).map((r) => ({
+    id: r.chunk_id,
+    doc_id: r.doc_id || "",
+    document_id: r.doc_id || "",
+    document_name: r.citation?.document_name || "Regulatory Document",
+    title: r.citation?.document_name || r.parent_header || "Regulatory Document",
+    regulator: r.regulator || "N/A",
+    jurisdiction: r.jurisdiction || "Global",
+    category: r.category || "General",
+    clause: r.citation?.clause_reference || r.parent_header || (r.citation?.page_number ? `Page ${r.citation.page_number}` : "Clause"),
+    page: r.citation?.page_number ? `Page ${r.citation.page_number}` : "",
+    page_number: r.citation?.page_number || 1,
+    version: r.citation?.version || "v1.0",
+    date: r.effective_from || "Active",
+    effective_from: r.effective_from || "",
+    effective_to: r.effective_to || "",
+    snippet: r.matched_snippet || r.content,
+    content: r.content || r.matched_snippet || "",
+    citation: r.citation?.citation_label || `${r.citation?.document_name || "Document"} (${r.citation?.version || "v1.0"}) - Page ${r.citation?.page_number || 1}`,
+    citation_label: r.citation?.citation_label || "",
+    applicability_warning: r.applicability_warning || null,
+  }));
 }
 
 export async function askAssistant(question) {
-  await delay(500);
-  return `Here is a summary related to "${question}". Connect this to your backend to return grounded answers with citations.`;
+  const q = (question || "").trim();
+  if (!q) return "";
+  const res = await fetch("/api/v1/chat/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question: q }),
+  });
+  if (!res.ok) throw new Error(`Assistant failed (HTTP ${res.status})`);
+  const data = await res.json();
+  let answer = (data.answer || "").trim();
+  if (data.grounded_sources?.length) {
+    const validSources = data.grounded_sources
+      .map((s) => s.citation_label || (s.document_name ? `${s.document_name} (${s.version || "v1.0"}) - Page ${s.page_number || 1}` : ""))
+      .filter(Boolean);
+    if (validSources.length > 0) {
+      answer += "\n\nSources:\n" + validSources.map((lbl) => `• ${lbl}`).join("\n");
+    }
+  }
+  return answer;
 }
 
-export const suggestedPrompts = assistantPrompts;
+export const suggestedPrompts = [
+  "What are the reporting fields for interest rate swaps under EMIR?",
+  "Summarise latest MiFID II updates",
+  "Show rules related to Counterparty LEI",
+  "What are the changes in execution venue disclosure?",
+];
 
 // Ingestion service (Spring Boot): upload + relational versioning layer (doc_metadata)
 export async function uploadDocument(file, { regulator, effectiveDate }) {
@@ -63,4 +104,33 @@ export async function fetchUpdates() {
       changes: changeItems,
     };
   });
+}
+
+// Regulatory Alerts API
+export async function fetchAlerts() {
+  const res = await fetch("/api/v1/alerts");
+  if (!res.ok) throw new Error(`Could not load alerts (HTTP ${res.status})`);
+  const data = await res.json();
+  return (data.items || []).map((a) => ({
+    id: a.id,
+    title: a.title,
+    description: a.description,
+    level: a.severity ? a.severity.charAt(0).toUpperCase() + a.severity.slice(1) : "Medium",
+    read: a.status === "acknowledged" || a.status === "resolved",
+    status: a.status,
+    regulator: a.metadata?.regulator || a.category || "General",
+    date: String(a.created_at || "").slice(0, 10),
+  }));
+}
+
+export async function acknowledgeAlert(alertId) {
+  const res = await fetch(`/api/v1/alerts/${alertId}/acknowledge`, { method: "POST" });
+  if (!res.ok) throw new Error(`Could not acknowledge alert (HTTP ${res.status})`);
+  return res.json();
+}
+
+export async function resolveAlert(alertId) {
+  const res = await fetch(`/api/v1/alerts/${alertId}/resolve`, { method: "POST" });
+  if (!res.ok) throw new Error(`Could not resolve alert (HTTP ${res.status})`);
+  return res.json();
 }

@@ -21,10 +21,10 @@ class CitationFormatter:
     @classmethod
     def format_hit(cls, raw_data: Dict[str, Any], score: float, highlight_snippet: Optional[str] = None) -> SearchResultItem:
         """Converts raw database hit into the frontend SearchResultItem schema."""
-        doc_name = raw_data.get("document_name", "Regulatory Document")
+        doc_name = raw_data.get("document_name") or raw_data.get("file_name") or "Regulatory Document"
         version = raw_data.get("version", "v1.0")
         page_number = int(raw_data.get("page_number", 1))
-        clause_ref = raw_data.get("clause_reference")
+        clause_ref = raw_data.get("clause_reference") or raw_data.get("parent_header") or raw_data.get("parent_section_id")
 
         citation = cls.build_citation(doc_name, version, page_number, clause_ref)
 
@@ -41,9 +41,10 @@ class CitationFormatter:
                 f"but internal clause text specifies alternative timelines."
             )
 
+        doc_id = str(raw_data.get("document_id") or raw_data.get("doc_id") or "")
         return SearchResultItem(
             chunk_id=raw_data.get("chunk_id", ""),
-            doc_id=raw_data.get("doc_id", ""),
+            doc_id=doc_id,
             citation=citation,
             parent_header=raw_data.get("parent_header"),
             content=content,

@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Upload, Search, Bell, X } from "lucide-react";
-import { regulators } from "../data/mockData.js";
 import { fetchDocuments, uploadDocument } from "../services/api.js";
+import { fetchRegulators } from "../services/ruleEngine.js";
 
 export default function DocumentLibrary() {
   const [docs, setDocs] = useState([]);
+  const [regulators, setRegulators] = useState([]);
   const [filter, setFilter] = useState("All");
   const [q, setQ] = useState("");
-  const [uploadReg, setUploadReg] = useState(regulators[0]);
+  const [uploadReg, setUploadReg] = useState("EMIR");
   const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().slice(0, 10));
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -17,6 +18,13 @@ export default function DocumentLibrary() {
 
   useEffect(() => {
     fetchDocuments().then(setDocs).catch((e) => setError(e.message));
+    fetchRegulators()
+      .then((list) => {
+        const ids = list.map((r) => r.id);
+        setRegulators(ids);
+        if (ids.length > 0) setUploadReg(ids[0]);
+      })
+      .catch(() => {});
   }, []);
 
   const onUpload = async (e) => {

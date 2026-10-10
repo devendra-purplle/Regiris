@@ -21,6 +21,19 @@ class Settings(BaseSettings):
     # System Reference Date (Matches latest corpus upload: 2024-07-20)
     DEFAULT_REFERENCE_DATE: str = "2024-07-20"
 
+    # Database
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        "postgresql://regiris_user:regiris_password@postgres:5432/regiris_db"
+    )
+
+    # Storage & Data Paths
+    DATA_DIR: str = os.getenv("DATA_DIR", "/app/data")
+    RULES_DIR: str = os.getenv("RULES_DIR", "/app/data")
+
+    # Security
+    API_KEY: str = os.getenv("API_KEY", "regiris-demo-secret-key-2026")
+
     # Hybrid Search Weights
     RRF_K: int = 60
     WEIGHT_LEXICAL: float = 1.0

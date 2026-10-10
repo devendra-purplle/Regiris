@@ -1,5 +1,5 @@
-// Talks to the rule-engine-service (FastAPI). Search/chat live in core-api-service.
-const BASE = (import.meta.env.VITE_RULE_ENGINE_URL ?? "http://localhost:8001").replace(/\/$/, "");
+// Talks to the core-api-service (FastAPI) which hosts rules, impact & search.
+const BASE = (import.meta.env.VITE_RULE_ENGINE_URL ?? "http://localhost:8000").replace(/\/$/, "");
 
 async function request(path, options) {
   let res;

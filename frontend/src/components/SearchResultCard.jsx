@@ -1,3 +1,5 @@
+import { FileText } from "lucide-react";
+
 export default function SearchResultCard({ result, onCite }) {
   return (
     <article className="card result-card">
@@ -6,8 +8,16 @@ export default function SearchResultCard({ result, onCite }) {
         <small>{result.clause} · {result.date}</small>
       </div>
       <h3>{result.title}</h3>
-      <p>{result.snippet}</p>
-      <button className="link-btn" onClick={() => onCite(result)}>View citation</button>
+      <p dangerouslySetInnerHTML={{ __html: result.snippet }} />
+      <button
+        type="button"
+        className="link-btn"
+        style={{ display: "inline-flex", alignItems: "center", gap: 5, cursor: "pointer" }}
+        onClick={() => onCite(result)}
+      >
+        <FileText size={14} />
+        <span>View citation</span>
+      </button>
     </article>
   );
 }

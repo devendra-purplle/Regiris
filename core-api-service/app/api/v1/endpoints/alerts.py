@@ -50,6 +50,16 @@ def get_alerts(
     )
 
 
+@router.post(
+    "",
+    response_model=Alert,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Alert",
+)
+def create_alert(alert: Alert):
+    return alert_service.create_alert(alert)
+
+
 @router.get(
     "/{alert_id}",
     response_model=Alert,

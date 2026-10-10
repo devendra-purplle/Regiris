@@ -13,76 +13,14 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def create_demo_alerts() -> list[Alert]:
-    now = utc_now()
-
-    return [
-        Alert(
-            id="ALT-001",
-            title="Critical regulatory deadline approaching",
-            description=(
-                "A regulatory obligation has a short remaining "
-                "time window and requires immediate review."
-            ),
-            severity=AlertSeverity.CRITICAL,
-            status=AlertStatus.OPEN,
-            category="Regulatory Deadline",
-            source_document="EU_Regulatory_Obligations.pdf",
-            rule_name="DeadlineProximityRule",
-            created_at=now,
-            updated_at=now,
-            metadata={
-                "regulator": "ESMA",
-                "days_remaining": 2,
-                "department": "Compliance",
-            },
-        ),
-        Alert(
-            id="ALT-002",
-            title="Potential regulatory policy conflict",
-            description=(
-                "A newly published requirement may conflict "
-                "with an existing internal compliance policy."
-            ),
-            severity=AlertSeverity.HIGH,
-            status=AlertStatus.ACKNOWLEDGED,
-            category="Policy Conflict",
-            source_document="MiFID_II_Updates.pdf",
-            rule_name="PolicyConflictRule",
-            created_at=now,
-            updated_at=now,
-            metadata={
-                "regulator": "ESMA",
-                "department": "Legal",
-                "review_required": True,
-            },
-        ),
-        Alert(
-            id="ALT-003",
-            title="Regulatory document requires review",
-            description=(
-                "A regulatory update has been flagged for "
-                "a compliance team's manual review."
-            ),
-            severity=AlertSeverity.MEDIUM,
-            status=AlertStatus.OPEN,
-            category="Document Review",
-            source_document="AML_Guidelines.pdf",
-            rule_name="DocumentReviewRule",
-            created_at=now,
-            updated_at=now,
-            metadata={
-                "regulator": "EBA",
-                "department": "AML Compliance",
-            },
-        ),
-    ]
+# Real in-memory store for regulatory and compliance alerts.
+_alerts: dict[str, Alert] = {}
 
 
-# In-memory store: deliberately temporary mock data.
-_alerts: dict[str, Alert] = {
-    alert.id: alert for alert in create_demo_alerts()
-}
+def create_alert(alert: Alert) -> Alert:
+    """Dynamically registers a new alert."""
+    _alerts[alert.id] = alert
+    return alert
 
 
 def list_alerts(

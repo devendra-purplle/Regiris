@@ -27,4 +27,13 @@ class LocalEmbedder:
         vector = model.encode(text, normalize_embeddings=True)
         return vector.tolist()
 
+    @classmethod
+    def embed_documents(cls, texts: List[str]) -> List[List[float]]:
+        """Encodes a batch of document chunk texts into 384-dimensional dense vectors."""
+        if not texts:
+            return []
+        model = cls.get_model()
+        vectors = model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
+        return vectors.tolist()
+
 embedder = LocalEmbedder()

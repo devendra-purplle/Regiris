@@ -1,5 +1,5 @@
-import { Download } from "lucide-react";
-import { impactMatrix } from "../data/mockData.js";
+import { Link } from "react-router-dom";
+import { Download, ArrowRight } from "lucide-react";
 
 const toCsv = (rows) => {
   const head = ["Trade ID", "Product Type", "Regulator", "Rule / Clause", "Impact", "Reason"];
@@ -7,13 +7,25 @@ const toCsv = (rows) => {
   return [head.join(","), ...body].join("\n");
 };
 
-export default function ImpactMatrix({ rows = impactMatrix }) {
+export default function ImpactMatrix({ rows = [] }) {
   const exportCsv = () => {
+    if (!rows || rows.length === 0) return;
     const url = URL.createObjectURL(new Blob([toCsv(rows)], { type: "text/csv" }));
     const a = Object.assign(document.createElement("a"), { href: url, download: "impact-matrix.csv" });
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  if (!rows || rows.length === 0) {
+    return (
+      <div style={{ padding: "20px 0", textAlign: "center" }}>
+        <p className="muted" style={{ marginBottom: 12 }}>No trade evaluations yet. Run an impact check to inspect live trade-to-rule compliance.</p>
+        <Link to="/impact" className="btn" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+          Go to Impact Analysis <ArrowRight size={14} />
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <>

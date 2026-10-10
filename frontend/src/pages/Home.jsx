@@ -8,18 +8,52 @@ import ImpactMatrix from "../components/ImpactMatrix.jsx";
 import CoverageChart from "../components/CoverageChart.jsx";
 import AssistantPanel from "../components/AssistantPanel.jsx";
 import CitationDialog from "../components/CitationDialog.jsx";
-import { stats, popularSearches, documentActions } from "../data/mockData.js";
-import { fetchUpdates } from "../services/api.js";
+import { fetchUpdates, fetchDocuments, fetchAlerts } from "../services/api.js";
+import { fetchRegulators } from "../services/ruleEngine.js";
+
+const POPULAR_SEARCHES = [
+  "EMIR interest rate swaps",
+  "MiFID II Counterparty LEI",
+  "FCA trade reporting",
+  "Execution Venue MIC",
+];
+
+const DOCUMENT_ACTIONS = [
+  { id: "upload", title: "Upload Regulation", sub: "PDF / HTML Parser", icon: "upload", tone: "green", to: "/library" },
+  { id: "search", title: "Search Clauses", sub: "Hybrid Semantic & BM25", icon: "search", tone: "blue", to: "/search" },
+  { id: "history", title: "Version History", sub: "& Comparison", icon: "clock", tone: "purple", to: "/updates" },
+  { id: "rules", title: "Manage Rules", sub: "JSON Configuration", icon: "settings", tone: "orange", to: "/rule-engine" },
+];
 
 export default function Home() {
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState(null);
   const [updates, setUpdates] = useState([]);
+  const [stats, setStats] = useState([
+    { id: "docs", label: "Documents Ingested", value: "-", delta: "Live repository", tone: "green" },
+    { id: "rules", label: "Active Rules", value: "-", delta: "Live logic engine", tone: "blue" },
+    { id: "regulators", label: "Regulators Covered", value: "-", delta: "Jurisdiction scope", tone: "purple" },
+    { id: "alerts", label: "Active Alerts", value: "-", delta: "Live alerts feed", tone: "orange" },
+  ]);
   const navigate = useNavigate();
   const go = (term) => navigate(`/search?q=${encodeURIComponent(term)}`);
 
   useEffect(() => {
     fetchUpdates().then(setUpdates).catch(() => setUpdates([]));
+
+    Promise.all([
+      fetchDocuments().catch(() => []),
+      fetchRegulators().catch(() => []),
+      fetchAlerts().catch(() => []),
+    ]).then(([docs, regulators, alerts]) => {
+      const totalRules = regulators.reduce((sum, r) => sum + (r.rules?.length || 0), 0);
+      setStats([
+        { id: "docs", label: "Documents Ingested", value: String(docs.length), delta: `${docs.length} active documents`, tone: "green" },
+        { id: "rules", label: "Active Rules", value: String(totalRules), delta: `Across ${regulators.length} regulators`, tone: "blue" },
+        { id: "regulators", label: "Regulators Covered", value: String(regulators.length), delta: regulators.map((r) => r.id).join(" · ") || "None", tone: "purple" },
+        { id: "alerts", label: "Active Alerts", value: String(alerts.length), delta: alerts.length ? `${alerts.length} require review` : "All clear", tone: "orange" },
+      ]);
+    });
   }, []);
 
   return (
@@ -51,14 +85,14 @@ export default function Home() {
             </form>
             <p className="muted small">Popular searches</p>
             <div className="chip-row">
-              {popularSearches.map((p) => <button key={p} className="chip" onClick={() => go(p)}>{p}</button>)}
+              {POPULAR_SEARCHES.map((p) => <button key={p} className="chip" onClick={() => go(p)}>{p}</button>)}
             </div>
           </div>
 
           <div className="card">
             <div className="card-title"><h2>Document Library</h2><Link to="/library">View All</Link></div>
             <div className="tile-grid">
-              {documentActions.map((a) => <FeatureCard key={a.id} {...a} />)}
+              {DOCUMENT_ACTIONS.map((a) => <FeatureCard key={a.id} {...a} />)}
             </div>
           </div>
         </div>
@@ -84,7 +118,7 @@ export default function Home() {
           <>
             <p className="muted">{selected.regulator} · {selected.date}</p>
             <p>{selected.summary}</p>
-            <ul>{selected.changes.map((c) => <li key={c}>{c}</li>)}</ul>
+            <ul>{selected.changes?.map((c) => <li key={c}>{c}</li>)}</ul>
           </>
         )}
       </CitationDialog>

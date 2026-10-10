@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Sparkles, Bell, ChevronDown } from "lucide-react";
-import { user } from "../data/mockData.js";
+
+const currentUser = { name: "Priya Sharma", initials: "PS" };
 
 export default function Header() {
   const [q, setQ] = useState("");
@@ -33,8 +34,8 @@ export default function Header() {
           <Bell size={19} /><span className="dot" />
         </button>
         <div className="profile">
-          <div className="avatar">{user.initials}</div>
-          <span>{user.name}</span>
+          <div className="avatar">{currentUser.initials}</div>
+          <span>{currentUser.name}</span>
           <ChevronDown size={15} />
         </div>
       </div>

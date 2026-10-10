@@ -1,10 +1,10 @@
 import { X } from "lucide-react";
 
-export default function CitationDialog({ open, title, children, onClose }) {
+export default function CitationDialog({ open, title, children, onClose, className = "" }) {
   if (!open) return null;
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="dialog" onClick={(e) => e.stopPropagation()}>
+      <div className={`dialog ${className}`.trim()} onClick={(e) => e.stopPropagation()}>
         <div className="dialog-head">
           <h3>{title}</h3>
           <button className="icon-btn" onClick={onClose} aria-label="Close"><X size={18} /></button>
