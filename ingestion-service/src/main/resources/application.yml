@@ -1,0 +1,47 @@
+server:
+  port: ${PORT:8081}
+
+spring:
+  application:
+    name: reg-iris-ingestion-service
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/regiris_db}
+    username: ${SPRING_DATASOURCE_USERNAME:regiris_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:regiris_password}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+    username: ${ELASTICSEARCH_USERNAME:}
+    password: ${ELASTICSEARCH_PASSWORD:}
+
+minio:
+  url: ${MINIO_URL:http://localhost:9000}
+  access:
+    key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret:
+    key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket:
+    name: ${MINIO_BUCKET_NAME:reg-iris-docs}
+
+chromadb:
+  url: ${CHROMA_URL:http://localhost:8002}
+  collection: ${CHROMA_COLLECTION:regulatory_embeddings}
+
+storage:
+  root-path: ${STORAGE_ROOT_PATH:/data/storage}
+
+fastapi:
+  core-service:
+    url: ${FASTAPI_INTERNAL_URL:http://localhost:8000}
